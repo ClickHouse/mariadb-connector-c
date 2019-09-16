@@ -9,7 +9,7 @@ INCLUDE(CheckFunctionExists)
 INCLUDE(CheckLibraryExists)
  
 FUNCTION(SEARCH_LIBRARY library_name function liblist)
-  IF(${${library_name}})
+  IF(${library_name})
     RETURN()
   ENDIF()
   CHECK_FUNCTION_EXISTS(${function} IS_${function}_LIBC_FUNC)
