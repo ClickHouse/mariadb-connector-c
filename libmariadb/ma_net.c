@@ -51,11 +51,11 @@
 #undef net_buffer_length
 
 #undef max_allowed_packet
-ulong max_allowed_packet=1024L * 1024L * 1024L;
+_Atomic ulong max_allowed_packet=1024L * 1024L * 1024L;
 ulong max_allowed_auth_packet = 1024L * 1024L;
 ulong net_read_timeout=  NET_READ_TIMEOUT;
 ulong net_write_timeout= NET_WRITE_TIMEOUT;
-ulong net_buffer_length= 8192;	/* Default length. Enlarged if necessary */
+_Atomic ulong net_buffer_length= 8192;	/* Default length. Enlarged if necessary */
 
 #if !defined(_WIN32)
 #include <sys/socket.h>
@@ -91,7 +91,7 @@ int ma_net_init(NET *net, MARIADB_PVIO* pvio)
 
   memset(net->buff, 0, net_buffer_length);
 
-  net->max_packet_size= MAX(net_buffer_length, max_allowed_packet);
+  max_allowed_packet= net->max_packet_size= MAX(net_buffer_length, max_allowed_packet);
   net->buff_end=net->buff+(net->max_packet=net_buffer_length);
   net->pvio = pvio;
   net->error=0; net->return_status=0;
