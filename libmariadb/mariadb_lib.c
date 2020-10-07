@@ -87,8 +87,8 @@
 
 #undef max_allowed_packet
 #undef net_buffer_length
-extern _Atomic ulong max_allowed_packet; /* net.c */
-extern _Atomic ulong net_buffer_length;  /* net.c */
+extern _Atomic(ulong) max_allowed_packet; /* net.c */
+extern _Atomic(ulong) net_buffer_length;  /* net.c */
 
 static MYSQL_PARAMETERS mariadb_internal_parameters= {&max_allowed_packet, &net_buffer_length, 0};
 static my_bool mysql_client_init=0;
