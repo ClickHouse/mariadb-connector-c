@@ -749,7 +749,7 @@ my_bool _mariadb_set_conf_option(MYSQL *mysql, const char *config_option, const 
   {
     int i;
     char *c;
-    
+
     /* CONC-395: replace underscore "_" by dash "-" */
     while ((c= strchr(config_option, '_')))
       *c= '-';
@@ -1701,7 +1701,7 @@ MYSQL *mthd_my_real_connect(MYSQL *mysql, const char *host, const char *user,
   {
     net->last_errno=CR_CANT_READ_CHARSET;
     sprintf(net->last_error,ER(net->last_errno),
-      mysql->options.charset_name ? mysql->options.charset_name : 
+      mysql->options.charset_name ? mysql->options.charset_name :
                                     MARIADB_DEFAULT_CHARSET,
       "compiled_in");
     goto error;
@@ -3838,12 +3838,6 @@ static void mysql_once_init()
     char *env;
 
     mysql_port = MARIADB_PORT;
-#if !__has_feature(memory_sanitizer) /* work around MSAN deficiency */
-    if ((serv_ptr = getservbyname("mysql", "tcp")))
-      mysql_port = (uint)ntohs((ushort)serv_ptr->s_port);
-#endif
-    if ((env = getenv("MYSQL_TCP_PORT")))
-      mysql_port =(uint)atoi(env);
   }
   if (!mysql_unix_port)
   {
