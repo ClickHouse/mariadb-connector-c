@@ -125,7 +125,7 @@ static void ma_tls_set_error(MYSQL *mysql)
   }
   if ((ssl_error_reason= ERR_reason_error_string(ssl_errno)))
   {
-    pvio->set_error(mysql, CR_SSL_CONNECTION_ERROR, SQLSTATE_UNKNOWN, 
+    pvio->set_error(mysql, CR_SSL_CONNECTION_ERROR, SQLSTATE_UNKNOWN,
                    0, ssl_error_reason);
     return;
   }
@@ -243,7 +243,7 @@ static int ma_tls_session_cb(SSL *ssl, SSL_SESSION *session)
   return 0;
 }
 
-static void ma_tls_remove_session_cb(SSL_CTX* ctx __attribute__((unused)), 
+static void ma_tls_remove_session_cb(SSL_CTX* ctx __attribute__((unused)),
                                      SSL_SESSION* session)
 {
   int i;
@@ -381,7 +381,7 @@ end:
 
 /*
    Release SSL and free resources
-   Will be automatically executed by 
+   Will be automatically executed by
    mysql_server_end() function
 
    SYNOPSIS
@@ -448,16 +448,12 @@ static int ma_tls_set_certs(MYSQL *mysql, SSL *ssl)
             mysql->options.extension->tls_pw : NULL;
   SSL_CTX *ctx= SSL_get_SSL_CTX(ssl);
 
-  
+
   /* add cipher */
   if ((mysql->options.ssl_cipher &&
         mysql->options.ssl_cipher[0] != 0))
    {
-     if(
-#ifdef TLS1_3_VERSION
-      SSL_set_ciphersuites(ssl, mysql->options.ssl_cipher) == 0 &&
-#endif
-      SSL_set_cipher_list(ssl, mysql->options.ssl_cipher) == 0)
+     if(SSL_set_cipher_list(ssl, mysql->options.ssl_cipher) == 0)
     goto error;
    }
 
@@ -482,7 +478,7 @@ static int ma_tls_set_certs(MYSQL *mysql, SSL *ssl)
   {
     if (SSL_CTX_use_certificate_chain_file(ctx, certfile) != 1 ||
         SSL_use_certificate_file(ssl, certfile, SSL_FILETYPE_PEM) != 1)
-      goto error; 
+      goto error;
   }
   if (keyfile && keyfile[0])
   {
@@ -502,7 +498,7 @@ static int ma_tls_set_certs(MYSQL *mysql, SSL *ssl)
       }
       EVP_PKEY_free(key);
     } else {
-      my_set_error(mysql, CR_SSL_CONNECTION_ERROR, SQLSTATE_UNKNOWN, 
+      my_set_error(mysql, CR_SSL_CONNECTION_ERROR, SQLSTATE_UNKNOWN,
                    CER(CR_FILE_NOT_FOUND), keyfile);
       return 1;
     }
@@ -510,7 +506,7 @@ static int ma_tls_set_certs(MYSQL *mysql, SSL *ssl)
   /* verify key */
   if (certfile && !SSL_check_private_key(ssl))
     goto error;
-  
+
   if (mysql->options.extension &&
       (mysql->options.extension->ssl_crl || mysql->options.extension->ssl_crlpath))
   {
@@ -647,7 +643,7 @@ my_bool ma_tls_connect(MARIADB_TLS *ctls)
     rc= SSL_get_verify_result(ssl);
     if (rc != X509_V_OK)
     {
-      my_set_error(mysql, CR_SSL_CONNECTION_ERROR, SQLSTATE_UNKNOWN, 
+      my_set_error(mysql, CR_SSL_CONNECTION_ERROR, SQLSTATE_UNKNOWN,
                    ER(CR_SSL_CONNECTION_ERROR), X509_verify_cert_error_string(rc));
       /* restore blocking mode */
       if (!blocking)
@@ -761,8 +757,8 @@ my_bool ma_tls_close(MARIADB_TLS *ctls)
   if (ctx)
     SSL_CTX_free(ctx);
 
-  SSL_set_quiet_shutdown(ssl, 1); 
-  /* 2 x pending + 2 * data = 4 */ 
+  SSL_set_quiet_shutdown(ssl, 1);
+  /* 2 x pending + 2 * data = 4 */
   for (i=0; i < 4; i++)
     if ((rc= SSL_shutdown(ssl)))
       break;
@@ -866,7 +862,7 @@ unsigned int ma_tls_get_finger_print(MARIADB_TLS *ctls, char *fp, unsigned int l
   if (!(cert= SSL_get_peer_certificate(ctls->ssl)))
   {
     my_set_error(mysql, CR_SSL_CONNECTION_ERROR, SQLSTATE_UNKNOWN,
-                        ER(CR_SSL_CONNECTION_ERROR), 
+                        ER(CR_SSL_CONNECTION_ERROR),
                         "Unable to get server certificate");
     goto end;
   }
@@ -874,21 +870,21 @@ unsigned int ma_tls_get_finger_print(MARIADB_TLS *ctls, char *fp, unsigned int l
   if (len < EVP_MAX_MD_SIZE)
   {
     my_set_error(mysql, CR_SSL_CONNECTION_ERROR, SQLSTATE_UNKNOWN,
-                        ER(CR_SSL_CONNECTION_ERROR), 
+                        ER(CR_SSL_CONNECTION_ERROR),
                         "Finger print buffer too small");
     goto end;
   }
   if (!X509_digest(cert, EVP_sha1(), (unsigned char *)fp, &fp_len))
   {
     my_set_error(mysql, CR_SSL_CONNECTION_ERROR, SQLSTATE_UNKNOWN,
-                        ER(CR_SSL_CONNECTION_ERROR), 
+                        ER(CR_SSL_CONNECTION_ERROR),
                         "invalid finger print of server certificate");
     goto end;
   }
-  
+
   X509_free(cert);
   return (fp_len);
-end:  
+end:
   X509_free(cert);
   return 0;
 }
