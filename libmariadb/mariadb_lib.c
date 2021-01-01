@@ -1493,7 +1493,7 @@ MYSQL *mthd_my_real_connect(MYSQL *mysql, const char *host, const char *user,
   {
     net->last_errno=CR_CANT_READ_CHARSET;
     sprintf(net->last_error,ER(net->last_errno),
-      mysql->options.charset_name ? mysql->options.charset_name : 
+      mysql->options.charset_name ? mysql->options.charset_name :
                                     MARIADB_DEFAULT_CHARSET,
       "compiled_in");
     goto error;
@@ -2888,7 +2888,7 @@ mysql_optionsv(MYSQL *mysql,enum mysql_option option, ...)
         }
       }
       /* check if key is already in buffer */
-      p= (uchar *)hash_search(&mysql->options.extension->userdata, 
+      p= (uchar *)hash_search(&mysql->options.extension->userdata,
                               (uchar *)key,
                               (uint)strlen(key));
       if (p)
@@ -3510,8 +3510,6 @@ static void mysql_once_init()
     char *env;
 
     mysql_port = MARIADB_PORT;
-    if ((serv_ptr = getservbyname("mysql", "tcp")))
-      mysql_port = (uint)ntohs((ushort)serv_ptr->s_port);
     if ((env = getenv("MYSQL_TCP_PORT")))
       mysql_port =(uint)atoi(env);
   }
