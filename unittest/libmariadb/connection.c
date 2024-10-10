@@ -1684,8 +1684,37 @@ static int test_conc392(MYSQL *mysql)
   return OK;
 }
 
+/* Test for PR250 */
+int test_tls_timeout(MYSQL *unused __attribute__((unused)))
+{
+  unsigned int connect_timeout= 5;
+  unsigned int read_write_timeout= 10;
+  int rc;
+  time_t start, elapsed;
+  MYSQL *mysql= mysql_init(NULL);
+  mysql_ssl_set(mysql, NULL, NULL, NULL, NULL, NULL);
+  mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (unsigned int *)&connect_timeout);
+  mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (unsigned int *)&read_write_timeout);
+  mysql_options(mysql, MYSQL_OPT_WRITE_TIMEOUT, (unsigned int *)&read_write_timeout);
+  if (!my_test_connect(mysql, hostname, username, password, schema, port, socketname, CLIENT_REMEMBER_OPTIONS, 1))
+  {
+    mysql_close(mysql);
+    return FAIL;
+  }
+  start= time(NULL);
+  rc= mysql_query(mysql, "SET @a:=SLEEP(12)");
+  elapsed= time(NULL) - start;
+  diag("elapsed: %lu", (unsigned long)elapsed);
+  FAIL_IF((unsigned int)elapsed > read_write_timeout + 1, "timeout ignored");
+  FAIL_IF(!rc, "expected timeout error");
+  diag("Error: %s", mysql_error(mysql));
+  mysql_close(mysql);
+  return OK;
+}
+
 
 struct my_tests_st my_tests[] = {
+  {"test_tls_timeout", test_tls_timeout, TEST_CONNECTION_NONE, 0, NULL, NULL},
   {"test_conc366", test_conc366, TEST_CONNECTION_DEFAULT, 0, NULL, NULL},
   {"test_conc392", test_conc392, TEST_CONNECTION_DEFAULT, 0, NULL, NULL},
   {"test_conc312", test_conc312, TEST_CONNECTION_DEFAULT, 0, NULL, NULL},
