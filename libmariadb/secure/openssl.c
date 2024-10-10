@@ -628,11 +628,13 @@ my_bool ma_tls_connect(MARIADB_TLS *ctls)
   {
     switch(SSL_get_error(ssl, rc)) {
     case SSL_ERROR_WANT_READ:
-      if (pvio->methods->wait_io_or_timeout(pvio, TRUE, pvio->timeout[PVIO_CONNECT_TIMEOUT]) < 1)
+      /* use low timeout, see ma_tls_read */
+      if (pvio->methods->wait_io_or_timeout(pvio, TRUE, 5) < 1)
         try_connect= 0;
       break;
     case SSL_ERROR_WANT_WRITE:
-      if (pvio->methods->wait_io_or_timeout(pvio, FALSE, pvio->timeout[PVIO_CONNECT_TIMEOUT]) < 1)
+      /* use low timeout, see ma_tls_read */
+      if (pvio->methods->wait_io_or_timeout(pvio, FALSE, 5) < 1)
         try_connect= 0;
       break;
     default:
@@ -731,7 +733,10 @@ ssize_t ma_tls_read(MARIADB_TLS *ctls, const uchar* buffer, size_t length)
     int error= SSL_get_error((SSL *)ctls->ssl, rc);
     if (error != SSL_ERROR_WANT_READ)
       return rc;
-    if (pvio->methods->wait_io_or_timeout(pvio, TRUE, pvio->timeout[PVIO_READ_TIMEOUT]) < 1)
+    /* To get a more precise error message than "resource temporary
+       unavailable" (=errno 11) after read timeout occured, we check
+       the socket status using a very small timeout (=5 ms) */
+    if (pvio->methods->wait_io_or_timeout(pvio, TRUE, 5) < 1)
       return rc;
   }
   return rc;
@@ -747,7 +752,8 @@ ssize_t ma_tls_write(MARIADB_TLS *ctls, const uchar* buffer, size_t length)
     int error= SSL_get_error((SSL *)ctls->ssl, rc);
     if (error != SSL_ERROR_WANT_WRITE)
       return rc;
-    if (pvio->methods->wait_io_or_timeout(pvio, FALSE, pvio->timeout[PVIO_WRITE_TIMEOUT]) < 1)
+    /* use low timeout, see ma_tls_read */
+    if (pvio->methods->wait_io_or_timeout(pvio, FALSE, 5) < 1)
       return rc;
   }
   return rc;
