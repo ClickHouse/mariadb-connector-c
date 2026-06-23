@@ -4580,18 +4580,7 @@ static void mysql_once_init()
   }
   if (!mysql_port)
   {
-#if !__has_feature(memory_sanitizer) /* work around MSAN deficiency */
-    struct servent *serv_ptr;
-#endif
-    char *env;
-
     mysql_port = MARIADB_PORT;
-#if !__has_feature(memory_sanitizer) /* work around MSAN deficiency */
-    if ((serv_ptr = getservbyname("mysql", "tcp")))
-      mysql_port = (uint)ntohs((ushort)serv_ptr->s_port);
-#endif
-    if ((env = getenv("MYSQL_TCP_PORT")))
-      mysql_port =(uint)atoi(env);
   }
   if (!mysql_unix_port)
   {
