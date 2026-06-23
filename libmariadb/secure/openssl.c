@@ -580,7 +580,7 @@ my_bool ma_tls_connect(MARIADB_TLS *ctls)
       break;
     case SSL_ERROR_WANT_WRITE:
       /* use low timeout, see ma_tls_read */
-      if (pvio->methods->wait_io_or_timeout(pvio, TRUE, 5) < 1)
+      if (pvio->methods->wait_io_or_timeout(pvio, FALSE, 5) < 1)
         try_connect= 0;
       break;
     default:
@@ -689,7 +689,7 @@ ssize_t ma_tls_write(MARIADB_TLS *ctls, const uchar* buffer, size_t length)
     if (error != SSL_ERROR_WANT_WRITE)
       break;
     /* use low timeout, see ma_tls_read */
-    if (pvio->methods->wait_io_or_timeout(pvio, TRUE, 5) < 1)
+    if (pvio->methods->wait_io_or_timeout(pvio, FALSE, 5) < 1)
       break;
   }
   if (rc <= 0)
