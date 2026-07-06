@@ -529,9 +529,34 @@ int pvio_socket_wait_io_or_timeout(MARIADB_PVIO *pvio, my_bool is_read, int time
     if (!timeout)
       timeout= -1;
 
-    do {
-      rc= poll(&p_fd, 1, timeout);
-    } while (rc == -1 && errno == EINTR);
+    /* Restarting poll() with the full timeout after EINTR would reset the deadline;
+       with a periodic signal (e.g. a sampling profiler) firing more often than the
+       timeout, the poll would then never expire. Re-poll with the remaining time. */
+    {
+      struct timespec start;
+      int remaining= timeout;
+      if (timeout > 0)
+        clock_gettime(CLOCK_MONOTONIC, &start);
+      for (;;)
+      {
+        rc= poll(&p_fd, 1, remaining);
+        if (rc != -1 || errno != EINTR)
+          break;
+        if (timeout > 0)
+        {
+          struct timespec now;
+          long elapsed_ms;
+          clock_gettime(CLOCK_MONOTONIC, &now);
+          elapsed_ms= (now.tv_sec - start.tv_sec) * 1000 + (now.tv_nsec - start.tv_nsec) / 1000000;
+          remaining= timeout - (int)elapsed_ms;
+          if (remaining <= 0)
+          {
+            rc= 0;
+            break;
+          }
+        }
+      }
+    }
 
     if (rc == 0)
       errno= ETIMEDOUT;
