@@ -125,11 +125,11 @@ static long ma_tls_version_options(const char *version)
 
 static void ma_tls_set_error(MYSQL *mysql)
 {
+  int save_errno= errno;
   ulong ssl_errno= ERR_get_error();
   char  ssl_error[MAX_SSL_ERR_LEN];
   const char *ssl_error_reason;
   MARIADB_PVIO *pvio= mysql->net.pvio;
-  int save_errno= errno;
 
   if (ssl_errno && (ssl_error_reason= ERR_reason_error_string(ssl_errno)))
   {
@@ -570,8 +570,13 @@ my_bool ma_tls_connect(MARIADB_TLS *ctls)
   /* CONC-732: Always set verification callback to avoid OpenSSL output */
   SSL_set_verify(ssl, SSL_VERIFY_PEER, ma_verification_callback);
 
-  while (try_connect && (rc= SSL_connect(ssl)) == -1)
+  /* SSL_get_error() reports the retry flags of the last operation only while the
+     thread's error queue is empty; a leftover entry is reported instead of them. */
+  while (try_connect)
   {
+    ERR_clear_error();
+    if ((rc= SSL_connect(ssl)) != -1)
+      break;
     switch((SSL_get_error(ssl, rc))) {
     case SSL_ERROR_WANT_READ:
       /* The socket is non-blocking during the handshake, so wait_io_or_timeout()
@@ -634,6 +639,7 @@ ssize_t ma_tls_read_async(MARIADB_PVIO *pvio,
 
   for (;;)
   {
+    ERR_clear_error();
     res= SSL_read((SSL *)ctls->ssl, (void *)buffer, (int)length);
     if (ma_tls_async_check_result(res, b, (SSL *)ctls->ssl))
       return res;
@@ -650,6 +656,7 @@ ssize_t ma_tls_write_async(MARIADB_PVIO *pvio,
 
   for (;;)
   {
+    ERR_clear_error();
     res= SSL_write((SSL *)ctls->ssl, (void *)buffer, (int)length);
     if (ma_tls_async_check_result(res, b, (SSL *)ctls->ssl))
       return res;
@@ -662,9 +669,13 @@ ssize_t ma_tls_read(MARIADB_TLS *ctls, const uchar* buffer, size_t length)
   int rc;
   MARIADB_PVIO *pvio= ctls->pvio;
 
-  while ((rc= SSL_read((SSL *)ctls->ssl, (void *)buffer, (int)length)) <= 0)
+  for (;;)
   {
-    int error= SSL_get_error((SSL *)ctls->ssl, rc);
+    int error;
+    ERR_clear_error();
+    if ((rc= SSL_read((SSL *)ctls->ssl, (void *)buffer, (int)length)) > 0)
+      break;
+    error= SSL_get_error((SSL *)ctls->ssl, rc);
     if (error != SSL_ERROR_WANT_READ)
       break;
     /* Wait for readability using the connection's read timeout (in ms);
@@ -685,9 +696,13 @@ ssize_t ma_tls_write(MARIADB_TLS *ctls, const uchar* buffer, size_t length)
   int rc;
   MARIADB_PVIO *pvio= ctls->pvio;
 
-  while ((rc= SSL_write((SSL *)ctls->ssl, (void *)buffer, (int)length)) <= 0)
+  for (;;)
   {
-    int error= SSL_get_error((SSL *)ctls->ssl, rc);
+    int error;
+    ERR_clear_error();
+    if ((rc= SSL_write((SSL *)ctls->ssl, (void *)buffer, (int)length)) > 0)
+      break;
+    error= SSL_get_error((SSL *)ctls->ssl, rc);
     if (error != SSL_ERROR_WANT_WRITE)
       break;
     /* Wait for writability (is_read=FALSE) using the connection's write
