@@ -240,11 +240,11 @@ static long ma_tls_version_options(const char *version)
 
 static void ma_tls_set_error(MYSQL *mysql)
 {
+  int save_errno= errno;
   ulong ssl_errno= ERR_get_error();
   char  ssl_error[MAX_SSL_ERR_LEN];
   const char *ssl_error_reason;
   MARIADB_PVIO *pvio= mysql->net.pvio;
-  int save_errno= errno;
 
   if (ssl_errno && (ssl_error_reason= ERR_reason_error_string(ssl_errno)))
   {
@@ -681,9 +681,15 @@ my_bool ma_tls_connect(MARIADB_TLS *ctls)
   /* The BIO blocks (poll() in sync, fiber yield in async), so SSL_connect()
      normally completes in one shot. The loop is kept defensive: should the
      BIO ever report WANT_READ/WANT_WRITE, wait the requested direction
-     (ma_pvio_wait_io_or_timeout() yields in async mode). */
-  while (try_connect && (rc= SSL_connect(ssl)) == -1)
+     (ma_pvio_wait_io_or_timeout() yields in async mode).
+
+     SSL_get_error() reports the retry flags of the last operation only while the
+     thread's error queue is empty; a leftover entry is reported instead of them. */
+  while (try_connect)
   {
+    ERR_clear_error();
+    if ((rc= SSL_connect(ssl)) != -1)
+      break;
     switch((SSL_get_error(ssl, rc))) {
     case SSL_ERROR_WANT_READ:
       if (ma_pvio_wait_io_or_timeout(pvio, TRUE,
@@ -716,7 +722,11 @@ ssize_t ma_tls_read(MARIADB_TLS *ctls, const uchar* buffer, size_t length)
   /* The custom BIO blocks (via poll()) in synchronous mode and performs
      timeout handling and renegotiation transparently, so a single SSL_read
      is sufficient. */
-  int rc= SSL_read((SSL *)ctls->ssl, (void *)buffer, (int)length);
+  int rc;
+  /* SSL_get_error() reports the retry flags of the last operation only while the
+     thread's error queue is empty; a leftover entry is reported instead of them. */
+  ERR_clear_error();
+  rc= SSL_read((SSL *)ctls->ssl, (void *)buffer, (int)length);
   if (rc <= 0)
   {
     int error= SSL_get_error((SSL *)ctls->ssl, rc);
@@ -754,7 +764,12 @@ ssize_t ma_tls_read(MARIADB_TLS *ctls, const uchar* buffer, size_t length)
 
 ssize_t ma_tls_write(MARIADB_TLS *ctls, const uchar* buffer, size_t length)
 {
-  int rc= SSL_write((SSL *)ctls->ssl, (void *)buffer, (int)length);
+  int rc;
+  /* SSL_get_error() (called via ma_tls_set_error()) reports the last operation
+     only while the thread's error queue is empty; a leftover entry is reported
+     instead of it. */
+  ERR_clear_error();
+  rc= SSL_write((SSL *)ctls->ssl, (void *)buffer, (int)length);
   if (rc <= 0)
   {
     MYSQL *mysql= SSL_get_app_data(ctls->ssl);
