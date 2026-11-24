@@ -4572,9 +4572,9 @@ static void ignore_sigpipe()
 #endif
 
 #ifdef _WIN32
-static int mysql_once_init()
+static int mysql_once_init(void)
 #else
-static void mysql_once_init()
+static void mysql_once_init(void)
 #endif
 {
   ma_init();					/* Will init threads */
